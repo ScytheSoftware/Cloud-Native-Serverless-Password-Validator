@@ -1,0 +1,347 @@
+<!-- The DOCTYPE declaration tells the browser that this is a modern HTML5 document -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Metadata block specifying character encoding (UTF-8 handles almost all characters/emojis) -->
+    <meta charset="UTF-8">
+    <!-- Viewport tag ensures the website scales correctly on mobile, tablet, and desktop screens -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassShield: Serverless Password Validator</title>
+
+    <!-- STYLE BLOCK: This is where we write CSS (Cascading Style Sheets) to style our HTML structure -->
+    <style>
+        /* 
+           ":root" defines global CSS Variables. 
+           Think of these like variables in C# or Python. Instead of hardcoding color hex codes 
+           dozens of times throughout our sheet, we define them once at the top. 
+           If we want to change our theme color later, we only change it here!
+        */
+        :root {
+            --bg-primary: #0f172a;      /* Slate Blue: Used for the main page background */
+            --bg-secondary: #1e293b;    /* Charcoal Blue: Used for the validation card container */
+            --text-primary: #f8fafc;    /* Off-White: Used for high-contrast titles and text */
+            --text-secondary: #94a3b8;  /* Slate Gray: Used for low-contrast subtitles and descriptions */
+            --color-success: #10b981;   /* Emerald Green: Used for rules that successfully pass */
+            --color-danger: #ef4444;    /* Ruby Red: Used for inputs that fail validation */
+            --border-color: #334155;    /* Muted Slate: Used for card and input borders */
+        }
+
+        /* 
+           The asterisk "*" is the CSS Universal Selector. It matches EVERY single element on the page.
+           We use this to "reset" default browser padding, margins, and lock layout calculations.
+        */
+        * {
+            /* 
+               "box-sizing: border-box" ensures that padding and borders are included in the element's 
+               total width/height calculations. This prevents elements from expanding larger than we intend.
+            */
+            box-sizing: border-box;
+            margin: 0;   /* Removes default browser margins so our design sits flush */
+            padding: 0;  /* Removes default browser padding */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Fallback font family stack */
+        }
+
+        /* 
+           Styling the "body" tag (which wraps the entire viewable canvas of the webpage).
+           We use CSS Flexbox to perfectly center our card vertically and horizontally on the screen.
+        */
+        body {
+            background-color: var(--bg-primary); /* Applies our global deep background color */
+            color: var(--text-primary);          /* Sets the default text color to off-white */
+            
+            /* FLEXBOX ENGINE: */
+            display: flex;             /* Activates Flexbox container layouts */
+            justify-content: center;   /* Centers child containers horizontally (X-axis) */
+            align-items: center;       /* Centers child containers vertically (Y-axis) */
+            
+            min-height: 100vh;         /* Forces the body height to be at least 100% of the viewport height */
+            padding: 20px;             /* Adds a safety cushion around the edges on small mobile screens */
+        }
+
+        /* 
+           The ".container" class styles our central password validator card.
+        */
+        .container {
+            background-color: var(--bg-secondary); /* Applied from our secondary card color token */
+            border: 1px solid var(--border-color); /* Draws a subtle border around the card */
+            border-radius: 12px;                   /* Rounds the corners of the card for a modern feel */
+            padding: 30px;                         /* Adds inner spacing between card edges and the text */
+            width: 100%;                           /* Card expands to fill space up to... */
+            max-width: 450px;                      /* ...a maximum limit of 450 pixels wide */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); /* Drops a soft shadow under the card for depth */
+        }
+
+        /* Styling our main header title */
+        h2 {
+            font-size: 1.6rem;
+            margin-bottom: 8px; /* Adds space beneath the title */
+            text-align: center; /* Centers the title within the card */
+        }
+
+        /* Styling the subtitle beneath our main header */
+        .subtitle {
+            color: var(--text-secondary); /* Applies muted gray text styling */
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 24px;          /* Adds space between the subtitle and the input box */
+        }
+
+        /* Outer container wrapping the input field and its label */
+        .input-group {
+            position: relative; /* Establishes a positioning context for absolute children (if needed) */
+            margin-bottom: 24px; /* Adds space below the input group */
+        }
+
+        /* Styling our input label */
+        label {
+            display: block;                  /* Forces label onto its own line above the input */
+            font-size: 0.85rem;
+            text-transform: uppercase;       /* Forces uppercase lettering */
+            letter-spacing: 0.05em;          /* Spreads letters out slightly for tracking */
+            color: var(--text-secondary);    /* Applies muted gray text */
+            margin-bottom: 8px;              /* Adds spacing between the text and the input border */
+        }
+
+        /* 
+           Styling our text input field. This is the interactive box where 
+           users type their password.
+        */
+        input {
+            width: 100%;                  /* Expands input to fill the container width */
+            padding: 12px 16px;           /* Adds space inside the input for readable text */
+            background-color: var(--bg-primary); /* Inside background color of the input box */
+            border: 2px solid var(--border-color); /* Default border outline */
+            border-radius: 8px;           /* Rounded corners for the input box */
+            color: var(--text-primary);   /* Typed character color */
+            font-size: 1rem;
+            outline: none;                /* Disables the default browser blue outline glow */
+            
+            /* 
+               "transition" tells the browser: "If the border-color changes, don't snap it instantly. 
+               Animate it smoothly over 0.2 seconds using a natural easing curve."
+            */
+            transition: border-color 0.2s ease;
+        }
+
+        /* Focus state: Triggers when a user clicks/taps inside the input box */
+        input:focus {
+            border-color: var(--text-secondary); /* Brightens the border to slate gray on click */
+        }
+
+        /* Dynamic Class State: Applied by JavaScript if the overall password passes validation */
+        input.valid {
+            border-color: var(--color-success); /* Dynamically turns the input border Emerald Green */
+        }
+
+        /* Dynamic Class State: Applied by JavaScript if the overall password fails validation */
+        input.invalid {
+            border-color: var(--color-danger);  /* Dynamically turns the input border Ruby Red */
+        }
+
+        /* 
+           Styling the structural unordered list "ul" element that holds our 5 rules.
+        */
+        .checklist {
+            list-style: none;             /* Removes the default HTML bullet dots */
+            display: flex;                /* Activates Flexbox for rules list layout */
+            flex-direction: column;       /* Spacks list items vertically, top-to-bottom */
+            gap: 12px;                    /* Adds uniform vertical spacing between list items */
+        }
+
+        /* 
+           Styling the base list item "li" rule elements.
+        */
+        .checklist-item {
+            display: flex;                 /* Flexbox aligns the circular bullet and text side-by-side */
+            align-items: center;           /* Centers bullet vertically with the center of the text */
+            gap: 12px;                     /* Adds spacing between the circular bullet and the text */
+            color: var(--text-secondary);  /* Starts as muted gray indicating "inactive/pending" state */
+            font-size: 0.92rem;
+            
+            /* Animates text color change smoothly when state toggles */
+            transition: color 0.2s ease;
+        }
+
+        /* 
+           Styling our custom circular bullet points. 
+           Instead of standard boring bullet points, we draw beautiful custom CSS rings!
+        */
+        .bullet {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;            /* Rounds border 50% to turn a perfect square into a perfect circle */
+            border: 2px solid var(--border-color); /* Draws our circular ring outline */
+            display: inline-flex;          /* Flexbox engine centers checkmarks/crosses inside the circle */
+            justify-content: center;       /* Horizontal center alignment */
+            align-items: center;           /* Vertical center alignment */
+            font-size: 0.7rem;             /* Size of the indicator mark */
+            font-weight: bold;
+            
+            /* Animates circle scaling, background color, and border changes smoothly */
+            transition: all 0.2s ease;
+        }
+
+        /* 
+           =============================================================================
+           DYNAMIC CSS STATE STYLES
+           These styles are applied by our JavaScript when evaluating backend API responses.
+           =============================================================================
+        */
+
+        /* SUCCESS STATE: Applied to checklist-item when a specific rule evaluates to TRUE */
+        .checklist-item.passed {
+            color: var(--text-primary);    /* Brightens the rule description text to off-white */
+        }
+
+        /* Styles the circular bullet when a rule passes successfully */
+        .checklist-item.passed .bullet {
+            background-color: var(--color-success); /* Fills the circle with green */
+            border-color: var(--color-success);     /* Sets green border outline */
+            color: var(--bg-primary);               /* Colors the inner checkmark symbol slate blue */
+        }
+
+        /* The "::after" pseudo-selector generates content inside the bullet dynamically in CSS! */
+        .checklist-item.passed .bullet::after {
+            content: "✓"; /* Automatically injects a checkmark symbol inside our green circle */
+        }
+
+        /* FAILURE STATE: Applied to checklist-item when a specific rule evaluates to FALSE */
+        .checklist-item.failed {
+            color: var(--text-secondary);  /* Mutes the rule description text to slate gray */
+        }
+
+        /* Styles the circular bullet when a rule fails validation */
+        .checklist-item.failed .bullet {
+            border-color: var(--color-danger); /* Highlights the circle border in ruby red */
+            color: var(--color-danger);        /* Sets the inner cross symbol to ruby red */
+        }
+
+        /* Automatically injects a cross symbol inside our red circle outline */
+        .checklist-item.failed .bullet::after {
+            content: "✗"; 
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 
+       HTML STRUCTURE: 
+       This forms the structural hierarchy (skeleton) of our card.
+    -->
+    <div class="container">
+        <h2>PassShield</h2>
+        <p class="subtitle">Decoupled Serverless Password Validator</p>
+
+        <!-- Input Section -->
+        <div class="input-group">
+            <label for="password-input">Enter Password</label>
+            <!-- 
+               "autocomplete='off'" tells the browser not to show previous password suggestions.
+               "type='text'" lets us see the characters as we type during testing.
+            -->
+            <input type="text" id="password-input" placeholder="Type to validate..." autocomplete="off">
+        </div>
+
+        <!-- Rules Checklist Section -->
+        <ul class="checklist">
+            <!-- Each list item represents a required password policy rule -->
+            <li id="rule-min-length" class="checklist-item"><span class="bullet"></span>Minimum 8 characters</li>
+            <li id="rule-max-length" class="checklist-item"><span class="bullet"></span>Maximum 15 characters</li>
+            <li id="rule-number" class="checklist-item"><span class="bullet"></span>At least one number (0-9)</li>
+            <li id="rule-special" class="checklist-item"><span class="bullet"></span>At least one special character</li>
+            <li id="rule-spaces" class="checklist-item"><span class="bullet"></span>No spaces allowed</li>
+        </ul>
+    </div>
+
+    <!-- JAVASCRIPT BEHAVIOR BLOCK: This is the active engine driving real-time interaction -->
+    <script>
+        // Grab a reference to the password text box in our HTML using its ID
+        const passwordInput = document.getElementById('password-input');
+        
+        // Construct an object map linking C# rule keys directly to our HTML elements
+        const rules = {
+            minLength: document.getElementById('rule-min-length'),
+            maxLength: document.getElementById('rule-max-length'),
+            hasNumber: document.getElementById('rule-number'),
+            hasSpecial: document.getElementById('rule-special'),
+            noSpaces: document.getElementById('rule-spaces')
+        };
+
+        // EVENT LISTENER: This activates a real-time event hook.
+        // It listens to the "input" channel of the text box. 
+        // This fires our callback function on EVERY single character change or keystroke!
+        passwordInput.addEventListener('input', async (e) => {
+            // "e.target.value" extracts the raw text currently inside the text box
+            const password = e.target.value;
+
+            // Defensive Check: If the box is completely empty, reset everything back to neutral gray
+            if (password.length === 0) {
+                resetUI();
+                return;
+            }
+
+            try {
+                // HTTP PIPELINE (Asynchronous API Request):
+                // We send the typed password payload across our local network port 7071
+                const response = await fetch('http://localhost:7071/api/ValidatePassword', {
+                    method: 'POST', // Sends data as an HTTP POST request
+                    headers: {
+                        'Content-Type': 'application/json' // Instructs the API that we are sending JSON data
+                    },
+                    // Converts our JS object into a raw JSON text string: {"password": "typedString"}
+                    body: JSON.stringify({ password: password })
+                });
+
+                // If the C# API backend responds with an HTTP 200 OK
+                if (response.ok) {
+                    // Extract and parse the JSON payload returned from C#
+                    const data = await response.json();
+                    
+                    // DYNAMIC STATE BINDING:
+                    // We call our helper function, passing the target HTML element and the 
+                    // boolean (true/false) results parsed directly from our C# API!
+                    updateRuleUI(rules.minLength, data.checks.minLengthPassed);
+                    updateRuleUI(rules.maxLength, data.checks.maxLengthPassed);
+                    updateRuleUI(rules.hasNumber, data.checks.hasNumber);
+                    updateRuleUI(rules.hasSpecial, data.checks.hasSpecialChar);
+                    updateRuleUI(rules.noSpaces, data.checks.noSpaces);
+
+                    // If the overall password evaluated to valid, color the input border green
+                    if (data.isValid) {
+                        passwordInput.className = 'valid'; // Appends the "valid" class in CSS
+                    } else {
+                        passwordInput.className = 'invalid'; // Appends the "invalid" class in CSS
+                    }
+                }
+            } catch (error) {
+                // If the C# API host is offline, log a network connection exception to the console
+                console.error('Error connecting to local serverless API:', error);
+            }
+        });
+
+        /**
+         * Helper Function: Dynamically swaps CSS classes on a rule based on boolean results
+         */
+        function updateRuleUI(element, isPassed) {
+            if (isPassed) {
+                // Swapping the element's CSS class to load green success styling
+                element.className = 'checklist-item passed';
+            } else {
+                // Swapping the element's CSS class to load red failure styling
+                element.className = 'checklist-item failed';
+            }
+        }
+
+        /**
+         * Helper Function: Resets the user interface back to its original neutral state
+         */
+        function resetUI() {
+            passwordInput.className = ''; // Strips active input border styling classes
+            for (const key in rules) {
+                // Loops through each rule element and reverts class name back to neutral default
+                rules[key].className = 'checklist-item';
+            }
+        }
+    </script>
+</body>
+</html>
